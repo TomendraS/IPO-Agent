@@ -2,7 +2,7 @@
 window.IPO_CONFIG = {
   // Realtime Database address from Firebase, for example
   // "https://my-ipo-office-default-rtdb.asia-southeast1.firebasedatabase.app"
-  firebaseUrl: "https://YOUR-PROJECT-default-rtdb.firebaseio.com",
+  firebaseUrl: "https://ipo-office-default-rtdb.asia-southeast1.firebasedatabase.app",
 
   // Your GitHub repository as "owner/name". Used by the Start research button.
   githubRepo: "TomendraS/IPO-Agent",
