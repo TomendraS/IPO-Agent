@@ -66,7 +66,7 @@ def _run_report(state):
     try:
         ipos, searched = team.discover()
     except llm.LLMError as e:
-        tg.send(f"Could not fetch the IPO list: {str(e)[:300]}")
+        tg.send(f"Could not fetch the IPO list: {str(e)[:900]}")
         live.run_end(False, "Could not fetch the IPO list, all free models were busy")
         return
     if not searched:
