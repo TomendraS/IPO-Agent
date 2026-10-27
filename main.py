@@ -83,6 +83,8 @@ def _run_report(state):
         live.run_end(True, "No open or upcoming IPOs in the next 7 days")
         return
     live.ipos_found(ipos)
+    if team.discovery_sites:
+        tg.send("IPO list taken from: " + ", ".join(team.discovery_sites[:8]))
     # Each report gets an id so a tap on an old message can never save the wrong IPO.
     rid = dt.datetime.now(IST).strftime("%d%H%M")
     state["report_id"] = rid
@@ -104,6 +106,7 @@ def _run_report(state):
             "verdict": res["verdict"],
             "signals": res["signals"],
             "all_searched": res["all_searched"],
+            "sources": res.get("sources", []),
         })
         tg.send(team.format_ipo(ipo, res),
                 [[{"text": "⭐ I'm interested", "callback_data": f"int:{rid}:{idx}"}]])
