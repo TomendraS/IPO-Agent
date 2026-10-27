@@ -4,20 +4,30 @@
   "interested": [],
   "last_report": [
     {
-      "name": "EAAA India Alternatives",
+      "name": "EAAA India Alternatives Ltd",
       "close_date": "2026-10-28",
       "verdict": "NEUTRAL"
     },
     {
-      "name": "SFC Environmental Technologies",
+      "name": "BLS Polymers Ltd",
       "close_date": "2026-10-29",
       "verdict": "NEUTRAL"
     },
     {
-      "name": "BLS Polymers",
+      "name": "SFC Environmental Technologies Ltd",
       "close_date": "2026-10-29",
+      "verdict": "NEUTRAL"
+    },
+    {
+      "name": "Wiscon Industries Ltd",
+      "close_date": "2026-10-29",
+      "verdict": "AVOID"
+    },
+    {
+      "name": "M.K.Sons Fine Jewels Ltd",
+      "close_date": "2026-10-30",
       "verdict": "NEUTRAL"
     }
   ],
-  "report_id": "271152"
+  "report_id": "272126"
 }
