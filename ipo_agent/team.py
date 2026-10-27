@@ -11,7 +11,7 @@ from .live import live
 
 IST = zoneinfo.ZoneInfo("Asia/Kolkata")
 MARKET = os.getenv("IPO_MARKET", "India (NSE/BSE)")
-MAX_IPOS = int(os.getenv("MAX_IPOS", "4"))
+MAX_IPOS = int(os.getenv("MAX_IPOS", "6"))
 
 COMMON = (
     "You are a specialist analyst on an IPO research team covering {market}. Today is {today}. "
@@ -137,28 +137,58 @@ IPO_SITES = _sites("IPO_SITES", "chittorgarh.com,ipowatch.in,ipocentral.in,inves
 NEWS_SITES = _sites("NEWS_SITES", "reuters.com,economictimes.indiatimes.com,moneycontrol.com,livemint.com,"
                     "business-standard.com,thehindubusinessline.com,ndtvprofit.com")
 discovery_sites = []  # sites the IPO list was taken from, shown to the user after discovery
+INCLUDE_SME = os.getenv("INCLUDE_SME", "no").strip().lower() in ("yes", "true", "1")  # mainboard only by default
+
+
+def _clean_ipos(items):
+    """Drop duplicates and IPOs that already closed, put Mainboard before SME, then by closing date."""
+    today = dt.datetime.now(IST).date()
+    seen, out = set(), []
+    for i in items:
+        if not isinstance(i, dict) or not i.get("name"):
+            continue
+        if not INCLUDE_SME and (str(i.get("type", "")).upper().startswith("SME") or "SME" in str(i.get("exchange", "")).upper()):
+            continue  # SME IPOs are off
+        key = re.sub(r"[^a-z0-9]", "", str(i["name"]).lower().replace("limited", "ltd"))
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            if dt.date.fromisoformat(str(i.get("close_date", ""))) < today:
+                continue
+        except ValueError:
+            pass  # closing date unknown: keep it, the report will say so
+        out.append(i)
+    out.sort(key=lambda i: (str(i.get("type", "")).upper().startswith("SME"), str(i.get("close_date") or "9999")))
+    return out
 
 
 def discover():
     """Find IPOs that are open now or open within 7 days. Returns (ipos, searched)."""
     if search.enabled():
-        ctx, n, srcs = search.gather([
-            f"IPO open this week India mainboard subscription dates price band {_today()}",
-            "upcoming IPO calendar India next week opening date closing date price band",
-        ], domains=IPO_SITES)
+        queries = [
+            f"IPO open today India subscription status price band {_today()}",
+            "IPOs opening this week India mainboard dates price band",
+            "upcoming IPO next week India opening date closing date price band",
+        ]
+        if INCLUDE_SME:
+            queries.insert(2, "SME IPO open this week India dates price band lot size")
+        ctx, n, srcs = search.gather(queries, domains=IPO_SITES, per_query=7, max_chars=14000)
         discovery_sites[:] = list(dict.fromkeys(search.site(s["url"]) for s in srcs if s["url"]))
         if n == 0:
             return [], False
+        scope = "Mainboard and SME IPOs" if INCLUDE_SME else "Mainboard IPOs only"
         prompt = (
-            f"Today is {_today()}. Below are web search results. Using ONLY these results, list IPOs in {MARKET} "
-            "that are open for subscription now or open within the next 7 days, with a closing date of today or later. "
-            "Mainboard IPOs only, unless there are fewer than 3, then add SME IPOs. Do NOT add any IPO that is not "
-            "named in the results, and leave a field empty if the results do not state it. Reply with ONLY a JSON "
-            'array, no other text: [{"name": "", "open_date": "YYYY-MM-DD", "close_date": "YYYY-MM-DD", '
-            '"price_band": "", "exchange": ""}]. Use [] if there are none.\n\nSEARCH RESULTS:\n' + ctx
+            f"Today is {_today()}. Below are web search results. Using ONLY these results, list every IPO in {MARKET} "
+            "that is open for subscription now or opens within the next 7 days, with a closing date of today or "
+            f"later. Scope: {scope}. List ALL that the results name, do not stop at the first few. Do NOT add any IPO "
+            "that is not named in the results, and leave a field empty if the results do not state it. Reply with "
+            'ONLY a JSON array, no other text: [{"name": "", "type": "Mainboard or SME", "open_date": "YYYY-MM-DD", '
+            '"close_date": "YYYY-MM-DD", "price_band": "", "exchange": ""}]. Use [] if there are none.'
+            "\n\nSEARCH RESULTS:\n" + ctx
         )
         reply = llm.ask(prompt, "You are a precise market data assistant. Never invent data.")
-        ipos = [i for i in _json_array(reply.text) if isinstance(i, dict) and i.get("name")]
+        ipos = _clean_ipos(_json_array(reply.text))
         return ipos[:MAX_IPOS], True
     prompt = (
         f"Today is {_today()}. List IPOs in {MARKET} that are open for subscription right now or open within the next "
@@ -168,13 +198,14 @@ def discover():
         "Use [] if there are none."
     )
     reply = llm.ask(prompt, "You are a precise market data assistant. Use live web search.", search=True)
-    ipos = [i for i in _json_array(reply.text) if isinstance(i, dict) and i.get("name")]
+    ipos = _clean_ipos(_json_array(reply.text))
     return ipos[:MAX_IPOS], reply.searched
 
 
 def _ipo_line(ipo):
     return (
-        f"IPO: {ipo.get('name')} | exchange: {ipo.get('exchange', '?')} | price band: {ipo.get('price_band', '?')} | "
+        f"IPO: {ipo.get('name')} ({ipo.get('type') or 'type unknown'}) | exchange: {ipo.get('exchange', '?')} | "
+        f"price band: {ipo.get('price_band', '?')} | "
         f"opens: {ipo.get('open_date', '?')} | closes: {ipo.get('close_date', '?')}"
     )
 
@@ -276,7 +307,7 @@ def format_ipo(ipo, res):
     verdict = str(v.get("verdict", "NEUTRAL")).upper()
     signals = " ".join(f"{k.split('_')[0]}{SIGN.get(s, '?')}" for k, s in res["signals"].items())
     lines = [
-        f"📊 {ipo.get('name')}  ({ipo.get('open_date', '?')} → {ipo.get('close_date', '?')})",
+        f"📊 {ipo.get('name')} [{ipo.get('type') or '?'}]  ({ipo.get('open_date', '?')} → {ipo.get('close_date', '?')})",
         f"Price band: {ipo.get('price_band', '?')}",
         f"Verdict: {verdict} {EMOJI.get(verdict, '')}  | confidence: {v.get('confidence', '?')}",
         f"Expected listing gain: {v.get('expected_listing_gain', 'unknown')}  | best for: {v.get('best_for', '?')}",
