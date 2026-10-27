@@ -118,6 +118,10 @@ def _gemini(prompt, system, search):
                 if r.status_code == 404:  # model retired or not offered to this key: try the next model
                     last = LLMError(f"model {model} unavailable: {r.text[:120]}")
                     break
+                if r.status_code == 429 and re.search(r"limit:\s*0\b|\"quotaValue\":\s*\"0\"", r.text):
+                    # this key has no free quota at all for this model: try the next model, do not bench the key
+                    last = LLMError(f"model {model} has no free quota on this key")
+                    break
                 if use_search and r.status_code in (400, 403, 429) and re.search(r"search|ground", r.text, re.I):
                     _search_ok[model] = False  # free keys cannot use live search: retry without it
                     continue
