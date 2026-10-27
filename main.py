@@ -63,10 +63,16 @@ def run_report(state):
 
 def _run_report(state):
     try:
-        ipos, _ = team.discover()
+        ipos, searched = team.discover()
     except llm.LLMError as e:
-        tg.send(f"Could not fetch the IPO list: {e}")
+        tg.send(f"Could not fetch the IPO list: {str(e)[:300]}")
         live.run_end(False, "Could not fetch the IPO list, all free models were busy")
+        return
+    if not searched:
+        tg.send("Live web search is not available on your free Gemini key, so I cannot list real IPOs "
+                "without guessing. I stopped instead of inventing any. Add a search source (ask Claude "
+                "to add Tavily) or enable billing on the Gemini project.")
+        live.run_end(False, "Stopped: no live web search available, so no real IPO list")
         return
     if not ipos:
         tg.send("No open or upcoming IPOs found for the next 7 days.")
