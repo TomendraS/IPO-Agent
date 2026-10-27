@@ -37,7 +37,7 @@ def site(url):
 
 def search(query, max_results=5, news=False, domains=None):
     """Return a list of {title, url, content}. Empty list if search is unavailable or finds nothing."""
-    ck = (query, news, tuple(domains or ()))
+    ck = (query, max_results, news, tuple(domains or ()))
     if ck in _cache:
         return _cache[ck]
     results = []
@@ -74,14 +74,20 @@ def search(query, max_results=5, news=False, domains=None):
     return results
 
 
-def gather(queries, news=False, domains=None):
-    """Run several queries. Returns (text for the LLM, number of results, [{title, url}] sources)."""
-    seen, lines, sources = set(), [], []
+def gather(queries, news=False, domains=None, per_query=5, max_chars=0):
+    """Run several queries. Returns (text for the LLM, number of results, [{title, url}] sources).
+
+    max_chars caps the text so a small-context free model is not overloaded (0 means no cap)."""
+    seen, lines, sources, total = set(), [], [], 0
     for q in queries:
-        for x in search(q, news=news, domains=domains):
+        for x in search(q, max_results=per_query, news=news, domains=domains):
             if x["url"] in seen:
                 continue
+            line = f"- {x['title']} ({x['url']})\n  {x['content']}"
+            if max_chars and total + len(line) > max_chars:
+                continue
             seen.add(x["url"])
-            lines.append(f"- {x['title']} ({x['url']})\n  {x['content']}")
+            total += len(line)
+            lines.append(line)
             sources.append({"title": x["title"] or site(x["url"]), "url": x["url"]})
     return "\n".join(lines), len(lines), sources
