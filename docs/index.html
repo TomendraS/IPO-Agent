@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPO Research Office</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+:root{
+  --page:#090d13; --floor:#18202c; --tile:#1f2a3a; --ink:#e9edf3; --muted:#8f9bb0; --line:#222d3f; --panel:#0f151e;
+  --lamp:#ffb347; --paper:#f4efe6; --desk:#cfae82; --desk-edge:#a98a62;
+  --pos:#5fd38d; --neu:#f2c14e; --neg:#ef6f6c;
+  --glass:rgba(94,234,212,.07); --glass-line:rgba(94,234,212,.34);
+  --font:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --serif:'Newsreader',Georgia,'Times New Roman',serif;
+}
+html{color-scheme:dark}
+body{margin:0;background:var(--page);color:var(--ink);font:400 15px/1.5 var(--font);-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--lamp);outline-offset:3px;border-radius:6px}
+
+/* header */
+.top{max-width:1180px;margin:0 auto;padding:22px 16px 14px;display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end;justify-content:space-between}
+h1{margin:0;font-weight:800;font-size:clamp(26px,5vw,38px);letter-spacing:-.03em;line-height:1.05}
+.sub{margin:6px 0 0;color:var(--muted);max-width:46ch}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.conn{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:14px;margin-right:4px}
+.conn i{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.conn[data-s=live] i{background:var(--pos);box-shadow:0 0 0 4px rgba(95,211,141,.18)}
+.conn[data-s=connecting] i,.conn[data-s=demo] i{background:var(--neu)}
+.conn[data-s=offline] i{background:var(--neg)}
+.btn{border:1px solid var(--line);background:transparent;padding:9px 16px;border-radius:999px;font-weight:600}
+.btn:hover{border-color:#34435b}
+.btn.primary{background:var(--lamp);border-color:var(--lamp);color:#241707}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn[disabled]{opacity:.55;cursor:default}
+.banner{max-width:1180px;margin:0 auto 6px;padding:0 16px}
+.banner div{border-left:3px solid var(--neu);padding:8px 14px;background:rgba(242,193,78,.07);border-radius:0 10px 10px 0;color:#e8dcb6;display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.banner button{border:0;background:none;color:var(--lamp);font-weight:600;padding:2px 0;text-decoration:underline;text-underline-offset:3px}
+
+/* layout */
+.layout{max-width:1180px;margin:0 auto;padding:6px 16px 56px;display:grid;gap:26px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:960px){.layout{grid-template-columns:minmax(0,540px) minmax(0,1fr);gap:40px}}
+.statusbar{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap;margin-bottom:12px;min-height:34px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:5px 13px 5px 11px;border-radius:999px;background:#131b27;border:1px solid var(--line);font-weight:600}
+.pill i{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.pill[data-s=running] i{background:var(--lamp);animation:pulse 1.4s ease-in-out infinite}
+.pill[data-s=done] i{background:var(--pos)}
+.pill[data-s=error] i{background:var(--neg)}
+.statusbar .t{color:var(--muted);font-variant-numeric:tabular-nums}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(255,179,71,.0);opacity:.55}}
+
+/* the office */
+.office{position:relative;container-type:inline-size;aspect-ratio:100/158;width:100%;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:#0c121a}
+.floor{position:absolute;inset:3% 2.5%;border-radius:14px;background-color:var(--floor);
+  background-image:linear-gradient(var(--tile) 1px,transparent 1px),linear-gradient(90deg,var(--tile) 1px,transparent 1px);background-size:5.2% 3.5%}
+.rug{position:absolute;left:6%;right:6%;border-radius:18px;background:rgba(255,255,255,.022);border:1px dashed rgba(255,255,255,.05)}
+.rug.a{top:35%;height:45%}.rug.b{top:84%;height:14%;left:26%;right:26%}
+.plant{position:absolute;width:6cqw;height:6cqw;border-radius:50%;background:radial-gradient(circle at 35% 35%,#3f9a68,#1e5a3b 70%);box-shadow:0 1cqw 1.6cqw rgba(0,0,0,.4),inset 0 0 0 .8cqw #2b6e49}
+.plant::after{content:"";position:absolute;inset:34%;border-radius:50%;background:#b97d52}
+.room{position:absolute;left:21cqw;top:4cqw;width:58cqw;height:47cqw;border-radius:2cqw;border:1px solid var(--glass-line);background:var(--glass);box-shadow:0 0 0 .5cqw rgba(94,234,212,.04)}
+.room::after{content:"";position:absolute;left:41%;bottom:-1px;width:18%;height:3px;background:var(--floor)}
+.wall{position:absolute;left:27cqw;top:7cqw;width:46cqw;height:11cqw;border-radius:1.2cqw;background:#070b11;border:.4cqw solid #243044;padding:1.3cqw 2cqw;display:flex;flex-direction:column;justify-content:center;gap:.4cqw;overflow:hidden}
+.wall b{font-weight:800;letter-spacing:-.01em;font-size:max(13px,3.3cqw);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wall span{color:var(--muted);font-size:max(10px,1.9cqw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tray{position:absolute;left:24.5cqw;top:30cqw;width:8cqw;height:7cqw}
+.tray .box{position:absolute;inset:auto 0 0 0;height:4.4cqw;border-radius:.8cqw;background:#2a3342;border:.3cqw solid #3a465a}
+.tray .sheets{position:absolute;left:.8cqw;right:.8cqw;bottom:2.2cqw;height:4cqw}
+.tray .sheets i{position:absolute;left:0;right:0;bottom:calc(var(--i)*.95cqw);height:1.8cqw;background:var(--paper);border-radius:.3cqw;border-bottom:.2cqw solid #cfc7b8;transform:rotate(calc(var(--r)*1deg))}
+.tray em{position:absolute;left:0;right:0;top:-3cqw;text-align:center;font-style:normal;color:var(--muted);font-size:max(9px,1.6cqw)}
+.stamp{position:absolute;left:62cqw;top:31cqw;transform:rotate(-7deg);padding:.6cqw 1.8cqw;border:.5cqw solid currentColor;border-radius:1cqw;font-weight:800;font-size:max(14px,3.4cqw);letter-spacing:-.01em;text-align:center;line-height:1.1;animation:stamp .45s cubic-bezier(.2,1.4,.4,1)}
+.stamp small{display:block;font-weight:600;font-size:max(9px,1.6cqw);color:var(--muted)}
+.stamp[data-v=APPLY]{color:var(--pos)}.stamp[data-v=AVOID]{color:var(--neg)}.stamp[data-v=NEUTRAL]{color:var(--neu)}
+@keyframes stamp{from{transform:rotate(-7deg) scale(1.9);opacity:0}}
+
+/* a desk */
+.st{position:absolute;transform:translateX(-50%);z-index:2}
+.pool{position:absolute;left:50%;top:-4cqw;width:42cqw;height:34cqw;transform:translateX(-50%);border-radius:50%;z-index:-1;opacity:0;transition:opacity .7s;background:radial-gradient(closest-side,rgba(255,179,71,.34),rgba(255,179,71,0))}
+.st[data-s=working] .pool{opacity:1;animation:flicker 3.2s ease-in-out infinite}
+.st[data-s=done] .pool{opacity:.9;background:radial-gradient(closest-side,rgba(95,211,141,.17),rgba(95,211,141,0))}
+.st[data-s=error] .pool{opacity:.9;background:radial-gradient(closest-side,rgba(239,111,108,.2),rgba(239,111,108,0))}
+.st[data-s=waiting] .pool{opacity:.6}
+@keyframes flicker{50%{opacity:.78}}
+.desk{position:relative;height:7.6cqw;border-radius:1.1cqw;background:linear-gradient(#d6b78d,#c5a47a);border-bottom:.55cqw solid var(--desk-edge);box-shadow:0 1.4cqw 2.2cqw rgba(0,0,0,.4)}
+.mon{position:absolute;left:50%;top:.9cqw;width:9.5cqw;height:3.7cqw;transform:translateX(-50%);background:#0a1017;border:.35cqw solid #2c3646;border-radius:.6cqw;display:grid;place-items:center;font-weight:800;font-size:max(10px,2.3cqw);line-height:1;overflow:hidden}
+.st[data-k=manager] .mon{width:13cqw;height:4.2cqw}
+.kb{position:absolute;left:50%;bottom:.9cqw;width:6.2cqw;height:1.1cqw;transform:translateX(-50%);background:#2c3646;border-radius:.3cqw}
+.lamp{position:absolute;right:1.1cqw;top:1cqw;width:1.5cqw;height:1.5cqw;border-radius:50%;background:#5c6678}
+.st[data-s=working] .lamp{background:var(--lamp);box-shadow:0 0 1.6cqw 0 var(--lamp)}
+.st[data-s=done] .lamp{background:var(--pos)}.st[data-s=error] .lamp{background:var(--neg)}
+.st[data-s=working] .mon{background:linear-gradient(100deg,#0b3a44,#1fb6c9,#0b3a44);background-size:240% 100%;animation:scan 1.6s linear infinite}
+.st[data-s=done] .mon{color:var(--pos);background:#0c1f17}.st[data-s=error] .mon{color:var(--neg);background:#2a1215}
+@keyframes scan{to{background-position:-240% 0}}
+.sig{position:absolute;left:1cqw;top:.6cqw;font-size:max(11px,2.4cqw);line-height:1.2;font-weight:800}
+.sig[data-v=POSITIVE]{color:var(--pos)}.sig[data-v=NEUTRAL]{color:var(--neu)}.sig[data-v=NEGATIVE]{color:var(--neg)}.sig[data-v="?"]{color:var(--muted)}
+.person{display:block;width:8.4cqw;height:7.4cqw;margin:-.9cqw auto 0;overflow:visible}
+.person .chair{fill:#0a0f16;opacity:.8}
+.st[data-s=idle] .person{opacity:.62}
+.arm{transform-box:fill-box;transform-origin:center}
+.st[data-s=working] .arm.l{animation:type .42s ease-in-out infinite alternate}
+.st[data-s=working] .arm.r{animation:type .42s ease-in-out .21s infinite alternate}
+@keyframes type{to{transform:translateY(-6px)}}
+.plate{text-align:center;line-height:1.2;margin-top:.4cqw;min-height:6.4cqw}
+.plate strong{display:block;font-weight:600;font-size:max(10.5px,2.1cqw)}
+.plate span{display:block;color:var(--muted);font-size:max(9px,1.65cqw)}
+.plate small{display:block;color:#6f7b8f;font-size:max(8.5px,1.45cqw);min-height:1.5em}
+.bubble{position:absolute;left:50%;bottom:calc(100% + .8cqw);transform:translateX(-50%) translateY(.6cqw);width:max-content;max-width:27cqw;padding:.9cqw 1.5cqw;border-radius:1.4cqw;background:#e9edf3;color:#141a24;font-size:max(9.5px,1.7cqw);line-height:1.3;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:5;box-shadow:0 1cqw 2cqw rgba(0,0,0,.45);text-align:left}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-.7cqw;width:1.4cqw;height:1.4cqw;background:inherit;transform:translateX(-50%) rotate(45deg)}
+.bubble span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.st[data-s=error] .bubble{background:#ffd9d7}
+.st.talk .bubble{opacity:1;transform:translateX(-50%)}
+.st[data-s=working] .bubble span::after{content:"...";display:inline-block;width:1.6em;text-align:left;animation:dots 1.2s steps(4,end) infinite}
+@keyframes dots{0%{clip-path:inset(0 100% 0 0)}100%{clip-path:inset(0 0 0 0)}}
+.st[data-k=manager] .bubble{max-width:36cqw}
+@container (max-width:430px){.bubble span{-webkit-line-clamp:2}.bubble{max-width:30cqw}}
+.paper{position:absolute;width:3cqw;height:4cqw;margin:-2cqw 0 0 -1.5cqw;background:var(--paper);border-radius:.3cqw;box-shadow:0 .6cqw 1.2cqw rgba(0,0,0,.45);z-index:8;pointer-events:none;
+  background-image:repeating-linear-gradient(transparent 0 .55cqw,#c9c1b0 .55cqw .7cqw);background-size:100% 70%;background-repeat:no-repeat;background-position:0 .7cqw}
+
+/* ledger */
+.ledger section+section{margin-top:30px;padding-top:26px;border-top:1px solid var(--line)}
+h2{margin:0 0 12px;font-size:19px;font-weight:600;letter-spacing:-.01em}
+.feed{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto;scrollbar-width:thin;scrollbar-color:#2a3547 transparent}
+.feed li{display:grid;grid-template-columns:62px 1fr;gap:2px 10px;padding:7px 0;border-bottom:1px solid #151d29}
+.feed time{color:#667389;font-variant-numeric:tabular-nums;font-size:13px;padding-top:1px}
+.feed b{font-weight:600}
+.feed .d{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
+.feed p{margin:0;color:#c3ccda}
+.empty{color:var(--muted);margin:0;max-width:44ch}
+.res{border-left:3px solid var(--muted);padding:2px 0 2px 16px;margin-bottom:26px}
+.res[data-v=APPLY]{border-color:var(--pos)}.res[data-v=AVOID]{border-color:var(--neg)}.res[data-v=NEUTRAL]{border-color:var(--neu)}
+.res header{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.res h3{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em}
+.verdict{font-weight:800;font-size:17px}
+.res[data-v=APPLY] .verdict{color:var(--pos)}.res[data-v=AVOID] .verdict{color:var(--neg)}.res[data-v=NEUTRAL] .verdict{color:var(--neu)}
+.facts{margin:4px 0 0;color:var(--muted);font-size:14px}
+.sum{font-family:var(--serif);font-size:18px;line-height:1.5;margin:10px 0;max-width:60ch;color:#e3e8f0}
+.chips{display:flex;gap:6px 14px;flex-wrap:wrap;margin:8px 0;font-size:13.5px;color:#c3ccda}
+.chips b{font-weight:800}
+.chips .POSITIVE{color:var(--pos)}.chips .NEUTRAL{color:var(--neu)}.chips .NEGATIVE{color:var(--neg)}.chips .Q{color:var(--muted)}
+details{margin-top:6px}
+summary{cursor:pointer;color:var(--lamp);font-weight:600;width:max-content}
+details ul{margin:8px 0 4px;padding-left:20px;color:#c3ccda}
+details h4{margin:10px 0 2px;font-size:14px;font-weight:600}
+.warn{color:var(--neu);font-size:13.5px;margin:6px 0 0}
+.watch{list-style:none;margin:0;padding:0}
+.watch li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #151d29}
+.watch span{color:var(--muted)}
+.foot{max-width:1180px;margin:0 auto;padding:0 16px 40px;color:#6f7b8f;font-size:13px}
+
+dialog{background:#121a26;color:var(--ink);border:1px solid #2a3547;border-radius:16px;padding:22px;max-width:min(460px,92vw)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog h2{margin-bottom:6px}
+dialog p{color:#b4bfd0;margin:6px 0 12px}
+dialog input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #34435b;background:#0a1019;color:var(--ink);font:inherit}
+dialog .row{display:flex;gap:10px;margin-top:16px;justify-content:flex-end;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#e9edf3;color:#141a24;padding:10px 18px;border-radius:12px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;max-width:90vw;z-index:20}
+.toast.on{opacity:1;transform:translateX(-50%)}
+@media(max-width:640px){.controls{width:100%}.controls .btn.primary{flex:1}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>IPO Research Office</h1>
+    <p class="sub" id="sub">A manager and six analysts research every open IPO. Watch them work.</p>
+  </div>
+  <div class="controls">
+    <span class="conn" id="conn" data-s="connecting"><i></i><span>Connecting</span></span>
+    <button class="btn" id="cfgBtn">Settings</button>
+    <button class="btn primary" id="startBtn">Start research</button>
+  </div>
+</header>
+<div class="banner" id="banner" hidden><div><span id="bannerText"></span><button id="replay">Replay demo</button></div></div>
+
+<main class="layout">
+  <section aria-label="Office">
+    <div class="statusbar">
+      <span class="pill" id="pill" data-s="idle" aria-live="polite"><i></i><span id="pillText">Idle</span></span>
+      <span class="t" id="timer"></span>
+    </div>
+    <div class="office" id="office" role="img" aria-label="Top view of an office. The manager sits in a glass room at the top. Six analysts and a skeptic sit at desks below."></div>
+  </section>
+
+  <aside class="ledger">
+    <section>
+      <h2>What the team is doing</h2>
+      <ol class="feed" id="feed"></ol>
+    </section>
+    <section>
+      <h2>Verdicts</h2>
+      <div id="results"></div>
+    </section>
+    <section>
+      <h2>Your watchlist</h2>
+      <ul class="watch" id="watch"></ul>
+    </section>
+  </aside>
+</main>
+<p class="foot">Research support, not financial advice. Grey market premium and listing gains can change within hours, so check the numbers before you bid.</p>
+
+<dialog id="dlg">
+  <form method="dialog">
+    <h2>Start research from this page</h2>
+    <p>Anyone can watch this page. Starting a run needs a GitHub token that stays on this device only. Create a fine-grained token for this repository with the permission Actions: Read and write.</p>
+    <input id="tok" type="password" placeholder="GitHub token" autocomplete="off" aria-label="GitHub token">
+    <div class="row">
+      <button class="btn" id="tokClear" type="button">Remove token</button>
+      <button class="btn" value="cancel">Cancel</button>
+      <button class="btn primary" id="tokSave" value="ok">Save token</button>
+    </div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="config.js"></script>
+<script>
+(() => {
+const cfg = window.IPO_CONFIG || {};
+const DB = String(cfg.firebaseUrl || '').replace(/\/$/, '');
+const LIVE = !!DB && !/YOUR-PROJECT/i.test(DB);
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const AG = {
+  manager:           {name:'Meera',  role:'Manager',       shirt:'#7a93c4', hair:'#10151d', w:30},
+  fundamentals:      {name:'Fatima', role:'Fundamentals',  shirt:'#3b82f6', hair:'#1f1410'},
+  market_demand:     {name:'Manish', role:'Market demand', shirt:'#f97316', hair:'#3b2a1a'},
+  sector:            {name:'Sanya',  role:'Sector',        shirt:'#34d399', hair:'#6b3a1a'},
+  geopolitics_macro: {name:'Gagan',  role:'Geo and macro', shirt:'#a78bfa', hair:'#111827'},
+  governance:        {name:'Govind', role:'Governance',    shirt:'#22d3ee', hair:'#5a5a5a'},
+  news_sentiment:    {name:'Neha',   role:'News and mood', shirt:'#f472b6', hair:'#2a1a12'},
+  skeptic:           {name:'Sameer', role:'Skeptic',       shirt:'#f87171', hair:'#1f1f1f'}
+};
+const ORDER = ['fundamentals','market_demand','sector','geopolitics_macro','governance','news_sentiment'];
+const POS = {manager:[50,27], fundamentals:[18,63], market_demand:[50,63], sector:[82,63],
+             geopolitics_macro:[18,99], governance:[50,99], news_sentiment:[82,99], skeptic:[50,135]};
+const SIG = {POSITIVE:'▲', NEUTRAL:'●', NEGATIVE:'▼', '?':'?'};
+const VWORD = {APPLY:'Apply', AVOID:'Avoid', NEUTRAL:'Neutral'};
+
+/* ---------- build the office ---------- */
+function person(a){
+  return `<svg class="person" viewBox="0 0 60 52" aria-hidden="true">
+    <ellipse class="chair" cx="30" cy="34" rx="24" ry="17"/>
+    <ellipse cx="30" cy="36" rx="22" ry="12" fill="${a.shirt}"/>
+    <ellipse class="arm l" cx="10" cy="22" rx="5.5" ry="10" fill="${a.shirt}"/>
+    <ellipse class="arm r" cx="50" cy="22" rx="5.5" ry="10" fill="${a.shirt}"/>
+    <circle cx="30" cy="24" r="11.5" fill="${a.hair}"/>
+    <circle cx="18.6" cy="26" r="2.4" fill="#d9a77f"/><circle cx="41.4" cy="26" r="2.4" fill="#d9a77f"/>
+  </svg>`;
+}
+function station(k){
+  const a = AG[k], p = POS[k];
+  return `<div class="st" id="st-${k}" data-k="${k}" data-s="idle" style="left:${p[0]}cqw;top:${p[1]}cqw;width:${a.w||22}cqw">
+    <i class="pool"></i><div class="bubble"><span></span></div>
+    <div class="desk"><div class="mon"></div><div class="kb"></div><i class="lamp"></i><b class="sig" hidden></b></div>
+    ${person(a)}
+    <div class="plate"><strong>${a.name}</strong><span>${a.role}</span><small class="via"></small></div>
+  </div>`;
+}
+$('#office').innerHTML = `
+  <div class="floor"><i class="rug a"></i><i class="rug b"></i></div>
+  <i class="plant" style="left:3.5cqw;top:5cqw"></i><i class="plant" style="right:3.5cqw;top:5cqw"></i>
+  <i class="plant" style="left:3.5cqw;bottom:4cqw"></i><i class="plant" style="right:3.5cqw;bottom:4cqw"></i>
+  <div class="room"></div>
+  <div class="wall" id="wall"></div>
+  <div class="tray" id="tray"><em>Reports</em><div class="sheets" id="sheets"></div><div class="box"></div></div>
+  <div class="stamp" id="stamp" hidden></div>
+  ${Object.keys(AG).map(station).join('')}`;
+
+/* ---------- helpers ---------- */
+const fmtDate = s => { const d = new Date(String(s) + 'T00:00:00'); return isNaN(d) ? String(s || '') : d.toLocaleDateString('en-IN', {day:'numeric', month:'short'}); };
+const trunc = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; };
+const ago = ms => { const m = Math.round(ms / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : Math.round(m / 60) + ' h ago'; };
+const clock = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+function toast(t){ const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 4200); }
+function viaText(k, a){
+  const p = a.provider;
+  if(!p || p === 'none') return '';
+  const nm = {gemini:'Gemini', nvidia:'NVIDIA', groq:'Groq', openrouter:'OpenRouter'}[p] || p;
+  if(ORDER.includes(k)) return a.searched ? nm + ', live search' : nm + ', no live search';
+  return nm;
+}
+
+/* ---------- render ---------- */
+let data = {}, prev = null;
+function fly(k){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const o = $('#office'), from = $('#st-' + k + ' .desk'), to = $('#tray');
+  const ob = o.getBoundingClientRect(), fb = from.getBoundingClientRect(), tb = to.getBoundingClientRect();
+  const p = document.createElement('i'); p.className = 'paper';
+  p.style.left = (fb.left + fb.width / 2 - ob.left) + 'px'; p.style.top = (fb.top + fb.height / 2 - ob.top) + 'px';
+  o.appendChild(p);
+  const dx = tb.left + tb.width / 2 - (fb.left + fb.width / 2), dy = tb.top + tb.height / 2 - (fb.top + fb.height / 2);
+  p.animate([
+    {transform:'translate(0,0) rotate(-8deg) scale(1)', opacity:1},
+    {transform:`translate(${dx * .5}px,${dy * .5 - 26}px) rotate(12deg) scale(1.12)`, opacity:1, offset:.5},
+    {transform:`translate(${dx}px,${dy}px) rotate(0deg) scale(.7)`, opacity:.95}
+  ], {duration:1150, easing:'cubic-bezier(.3,.7,.3,1)'}).onfinish = () => p.remove();
+}
+
+function paintStation(k, a){
+  const el = $('#st-' + k); if(!el) return;
+  const s = a.state || 'idle';
+  el.dataset.s = s;
+  const text = (s === 'idle') ? '' : (a.task || '');
+  el.classList.toggle('talk', !!text);
+  const b = el.querySelector('.bubble span'); b.textContent = trunc(text, 96); el.querySelector('.bubble').title = text;
+  el.querySelector('.mon').textContent = s === 'done' ? '✓' : s === 'error' ? '!' : '';
+  const sig = el.querySelector('.sig');
+  if(ORDER.includes(k) && s === 'done' && a.signal){ sig.hidden = false; sig.dataset.v = a.signal; sig.textContent = SIG[a.signal] || '?'; sig.title = 'Signal: ' + a.signal.toLowerCase(); }
+  else sig.hidden = true;
+  el.querySelector('.via').textContent = (s === 'done' || s === 'working' || s === 'error') ? viaText(k, a) : '';
+}
+
+function render(d){
+  data = d || {};
+  const run = data.run || {state:'idle'}, ag = data.agents || {}, ipo = data.ipo || {};
+  let reports = 0;
+  for(const k of Object.keys(AG)){
+    const a = ag[k] || {state:'idle'};
+    paintStation(k, a);
+    if(k !== 'manager' && a.state === 'done') reports++;
+    if(prev && prev[k] !== 'done' && a.state === 'done' && k !== 'manager') fly(k);
+    if(prev) prev[k] = a.state;
+  }
+  if(!prev){ prev = {}; for(const k of Object.keys(AG)) prev[k] = (ag[k] || {}).state; }
+
+  $('#sheets').innerHTML = Array.from({length:Math.min(reports, 7)}, (_, i) => `<i style="--i:${i};--r:${(i % 3) - 1}"></i>`).join('');
+
+  const m = ag.manager || {};
+  const stamp = $('#stamp');
+  if(m.state === 'done' && m.verdict){ stamp.hidden = false; stamp.dataset.v = m.verdict; stamp.innerHTML = esc(VWORD[m.verdict] || m.verdict) + `<small>${esc(String(m.confidence || '').toLowerCase())} confidence</small>`; }
+  else stamp.hidden = true;
+
+  // wall screen
+  let h;
+  if(run.state === 'running' && ipo.name){
+    const bits = [ipo.index && ipo.total ? `IPO ${ipo.index} of ${ipo.total}` : '', ipo.close_date ? 'closes ' + fmtDate(ipo.close_date) : '', ipo.price_band ? 'band ' + ipo.price_band : ''].filter(Boolean).join(', ');
+    h = `<b>${esc(ipo.name)}</b><span>${esc(bits)}</span>`;
+  } else if(run.state === 'running') h = `<b>Scanning the market</b><span>${esc(run.message)}</span>`;
+  else if(run.state === 'done') h = `<b>Run finished</b><span>${esc(run.message)}</span>`;
+  else if(run.state === 'error') h = `<b>Run stopped</b><span>${esc(run.message)}</span>`;
+  else h = `<b>The office is quiet</b><span>${esc(run.message || 'Waiting for the next run')}</span>`;
+  $('#wall').innerHTML = h;
+
+  tick();
+
+  // feed
+  const log = data.log || [];
+  $('#feed').innerHTML = log.length ? log.slice(0, 40).map(l => {
+    const a = AG[l.agent] || {name:'Team', shirt:'#8f9bb0'};
+    return `<li><time>${esc(l.t)}</time><div><b><i class="d" style="background:${a.shirt}"></i>${esc(a.name)}</b><p>${esc(l.text)}</p></div></li>`;
+  }).join('') : `<li><p class="empty">Nothing yet. When a run starts, every step shows up here.</p></li>`;
+
+  // results
+  const rs = data.results || [];
+  $('#results').innerHTML = rs.length ? rs.slice().reverse().map(r => {
+    const v = r.verdict || {}, vv = String(v.verdict || 'NEUTRAL').toUpperCase();
+    const facts = [r.close_date ? 'Closes ' + fmtDate(r.close_date) : '', r.price_band ? 'Band ' + r.price_band : '', v.confidence ? 'Confidence ' + String(v.confidence).toLowerCase() : '', v.expected_listing_gain ? 'Listing gain ' + v.expected_listing_gain : '', v.best_for ? 'Best for ' + v.best_for : ''].filter(Boolean).join('. ');
+    const chips = Object.entries(r.signals || {}).map(([k, s]) => `<span class="${s === '?' ? 'Q' : esc(s)}"><b>${SIG[s] || '?'}</b> ${esc((AG[k] || {}).role || k)}</span>`).join('');
+    const li = arr => (arr || []).map(x => `<li>${esc(x)}</li>`).join('') || '<li>None listed</li>';
+    return `<article class="res" data-v="${esc(vv)}">
+      <header><h3>${esc(r.name)}</h3><span class="verdict">${esc(VWORD[vv] || vv)}</span></header>
+      <p class="facts">${esc(facts)}</p>
+      <p class="sum">${esc(v.summary || '')}</p>
+      <div class="chips">${chips}</div>
+      <details><summary>Reasons, risks and gaps</summary>
+        <h4>Why</h4><ul>${li(v.key_reasons)}</ul><h4>Risks</h4><ul>${li(v.key_risks)}</ul><h4>Data gaps</h4><ul>${li(v.data_gaps)}</ul></details>
+      ${r.all_searched === false ? '<p class="warn">Some analysts could not use live search, so their numbers may be out of date.</p>' : ''}
+    </article>`;
+  }).join('') : `<p class="empty">No verdicts yet. Press Start research and the team's calls will appear here.</p>`;
+
+  // watchlist
+  const wl = data.watchlist || [];
+  $('#watch').innerHTML = wl.length ? wl.map(w => {
+    const days = Math.round((new Date(w.close_date + 'T00:00:00') - new Date(new Date().toDateString())) / 864e5);
+    const when = isNaN(days) ? '' : days < 0 ? 'closed' : days === 0 ? 'closes today at 5 PM' : `closes in ${days} day${days === 1 ? '' : 's'}`;
+    return `<li><b>${esc(w.name)}</b><span>${esc(when)}</span></li>`;
+  }).join('') : `<li><p class="empty">Empty. Tap Interested on an IPO in Telegram and it appears here with a countdown.</p></li>`;
+}
+
+/* status pill and timer, refreshed every second */
+function tick(){
+  const run = (data.run || {state:'idle'}), ipo = data.ipo || {};
+  const upd = data.updated ? Date.parse(data.updated) : 0, now = Date.now();
+  const stale = run.state === 'running' && upd && now - upd > 12 * 60000;
+  let label = 'Idle', t = '';
+  if(run.state === 'running'){
+    label = ipo.name ? 'Working on ' + ipo.name : 'Starting up';
+    const st = run.started ? Date.parse(run.started) : 0;
+    t = st ? 'running for ' + clock(now - st) : '';
+    if(stale){ label = 'No update for ' + Math.round((now - upd) / 60000) + ' min, the run may have stopped'; t = ''; }
+  } else if(run.state === 'done'){ label = 'Finished'; t = run.ended ? ago(now - Date.parse(run.ended)) : ''; }
+  else if(run.state === 'error'){ label = 'Stopped with a problem'; t = run.ended ? ago(now - Date.parse(run.ended)) : ''; }
+  else if(upd) t = 'last update ' + ago(now - upd);
+  const pill = $('#pill'); pill.dataset.s = stale ? 'error' : run.state;
+  $('#pillText').textContent = label; $('#timer').textContent = t;
+}
+setInterval(tick, 1000);
+
+/* ---------- connection ---------- */
+function setConn(s){
+  const el = $('#conn'); el.dataset.s = s;
+  el.querySelector('span').textContent = {live:'Live', connecting:'Connecting', offline:'Offline, retrying', demo:'Demo'}[s];
+}
+async function pull(){
+  try{
+    const r = await fetch(DB + '/status.json', {cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    setConn('live'); render(d || {});
+  }catch(e){ setConn('offline'); }
+}
+function connect(){
+  pull();
+  let t;
+  const kick = () => { clearTimeout(t); t = setTimeout(pull, 250); };
+  try{
+    const es = new EventSource(DB + '/status.json');
+    es.addEventListener('put', kick); es.addEventListener('patch', kick);
+    es.onopen = () => setConn('live'); es.onerror = () => setConn('connecting');
+  }catch(e){}
+  setInterval(pull, 20000);
+}
+
+/* ---------- demo (sample data, used until Firebase is set up) ---------- */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const ACT = {fundamentals:'Reading financials and peer valuation', market_demand:'Checking GMP and subscription', sector:'Studying the sector and competitors', geopolitics_macro:'Scanning global news and markets', governance:'Checking promoters and red flags', news_sentiment:'Reading news and analyst views'};
+const DEMO_IPOS = [
+  {name:'Sample Industries Ltd', open_date:'2026-10-27', close_date:'2026-10-29', price_band:'₹210 to ₹221', exchange:'NSE',
+   notes:{fundamentals:['Revenue up 24% in a year, debt-to-equity near 0.6','POSITIVE'], market_demand:['Grey market premium steady near 12% of the band','POSITIVE'], sector:['Demand for the product is growing, three listed rivals trade at higher multiples','POSITIVE'], geopolitics_macro:['Crude is calm, foreign funds bought this week, Nifty near its high','NEUTRAL'], governance:['Promoters keep 62% after the issue, no pledges found','POSITIVE'], news_sentiment:['Two brokerages say subscribe, one says subscribe only for listing gains','POSITIVE']},
+   skeptic:'Valuation leaves little room if the market turns, and the growth figure is one year only.', verdict:{verdict:'APPLY', confidence:'MEDIUM', expected_listing_gain:'8 to 15%', best_for:'listing gain', summary:'Strong growth and a steady premium make this a fair bet for a listing gain. The rich valuation is the main risk, so keep the bid small.', key_reasons:['Revenue up 24% with moderate debt','Premium steady near 12%','Promoters hold 62% after the issue'], key_risks:['Priced above listed rivals','Market mood could change before listing'], data_gaps:['Only one full year of audited growth']}},
+  {name:'Demo Foods Ltd', open_date:'2026-10-28', close_date:'2026-10-30', price_band:'₹96 to ₹101', exchange:'BSE',
+   notes:{fundamentals:['Profit margin only 3%, most of the issue is promoter selling','NEGATIVE'], market_demand:['Retail books slow on day one, premium slipping','NEGATIVE'], sector:['Crowded packaged-food market, price pressure from larger brands','NEUTRAL'], geopolitics_macro:['Same calm backdrop as the other IPO, no extra risk found','NEUTRAL'], governance:['An old tax dispute is listed in the offer document','NEGATIVE'], news_sentiment:['Mixed views, most analysts say avoid','NEGATIVE']},
+   skeptic:'Everything points the same way, but the premium data is thin because few trades are reported.', verdict:{verdict:'AVOID', confidence:'MEDIUM', expected_listing_gain:'unknown', best_for:'neither', summary:'Thin margins, heavy promoter selling and a slowing premium outweigh the calm market. Skip this one unless demand picks up on day two.', key_reasons:['Margins near 3%','Most of the issue is an offer for sale'], key_risks:['Tax dispute in the offer document','Weak early subscription'], data_gaps:['Few grey market trades to confirm the premium']}}
+];
+let demoBusy = false;
+async function demo(){
+  if(demoBusy) return; demoBusy = true; prev = null;
+  const blank = () => Object.fromEntries(Object.keys(AG).map(k => [k, {state:'idle', task:''}]));
+  const D = {updated:'', run:{state:'running', started:new Date().toISOString(), message:'Scanning for open and upcoming IPOs'}, ipo:{}, agents:blank(), results:[], watchlist:[], log:[]};
+  const say = (agent, text) => { D.log.unshift({t:new Date().toLocaleTimeString('en-GB'), agent, text}); };
+  const push = () => { D.updated = new Date().toISOString(); render(JSON.parse(JSON.stringify(D))); };
+  D.agents.manager = {state:'working', task:'Scanning for open and upcoming IPOs'}; say('manager', 'Research run started, scanning for open and upcoming IPOs'); push();
+  await sleep(1800);
+  say('manager', `Found ${DEMO_IPOS.length} IPOs`);
+  for(let i = 0; i < DEMO_IPOS.length; i++){
+    const ip = DEMO_IPOS[i];
+    D.ipo = {name:ip.name, open_date:ip.open_date, close_date:ip.close_date, price_band:ip.price_band, exchange:ip.exchange, index:i + 1, total:DEMO_IPOS.length};
+    D.agents = blank(); D.agents.manager = {state:'waiting', task:'Waiting for reports (0/6)'};
+    say('manager', `Now analysing ${ip.name} (${i + 1} of ${DEMO_IPOS.length})`); push(); await sleep(1100);
+    let n = 0;
+    for(const k of ORDER){
+      D.agents[k] = {state:'working', task:ACT[k]}; say(k, ACT[k]); push(); await sleep(1700);
+      const [note, signal] = ip.notes[k], viaGroq = (i === 1 && k === 'governance');
+      D.agents[k] = {state:'done', task:note, signal, provider:viaGroq ? 'groq' : 'gemini', searched:!viaGroq}; say(k, note);
+      D.agents.manager = {state:'waiting', task:`Waiting for reports (${++n}/6)`}; push(); await sleep(700);
+    }
+    D.agents.skeptic = {state:'working', task:'Looking for holes in the reports'}; say('skeptic', 'Looking for holes in the reports'); push(); await sleep(1700);
+    D.agents.skeptic = {state:'done', task:ip.skeptic, provider:'groq'}; say('skeptic', ip.skeptic); push(); await sleep(900);
+    D.agents.manager = {state:'working', task:'Weighing every report and writing the verdict'}; say('manager', 'Weighing every report and writing the verdict'); push(); await sleep(2000);
+    D.agents.manager = {state:'done', task:ip.verdict.summary, verdict:ip.verdict.verdict, confidence:ip.verdict.confidence, provider:'gemini'}; say('manager', ip.verdict.summary);
+    D.results.push({name:ip.name, open_date:ip.open_date, close_date:ip.close_date, price_band:ip.price_band, exchange:ip.exchange, verdict:ip.verdict,
+      signals:Object.fromEntries(ORDER.map(k => [k, ip.notes[k][1]])), all_searched:i !== 1});
+    push(); await sleep(3200);
+  }
+  D.run = {...D.run, state:'done', ended:new Date().toISOString(), message:`Research complete, ${DEMO_IPOS.length} IPOs analysed`};
+  D.watchlist = [{name:DEMO_IPOS[0].name, close_date:DEMO_IPOS[0].close_date}];
+  say('manager', D.run.message); push(); demoBusy = false;
+}
+
+/* ---------- starting a run from the page ---------- */
+const TOKEN_KEY = 'ipo_office_gh_token';
+const getTok = () => { try{ return localStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } };
+async function start(){
+  if(!LIVE){ demo(); return; }
+  const tok = getTok();
+  if(!tok){ $('#dlg').showModal(); return; }
+  if(!/^[\w.-]+\/[\w.-]+$/.test(cfg.githubRepo || '') || /YOUR-USERNAME/.test(cfg.githubRepo)){ toast('Set githubRepo in config.js first.'); return; }
+  const btn = $('#startBtn'); btn.disabled = true;
+  try{
+    const r = await fetch(`https://api.github.com/repos/${cfg.githubRepo}/actions/workflows/${cfg.workflow || 'agent.yml'}/dispatches`, {
+      method:'POST',
+      headers:{Authorization:'Bearer ' + tok, Accept:'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28'},
+      body:JSON.stringify({ref:cfg.branch || 'main', inputs:{mode:'research'}})
+    });
+    if(r.status === 204) toast('Queued on GitHub. The team starts within about a minute.');
+    else if(r.status === 401 || r.status === 403 || r.status === 404) toast('GitHub refused the token. It needs Actions: Read and write on this repository.');
+    else if(r.status === 422) toast('The workflow has no research option yet. Update agent.yml from the project.');
+    else toast('GitHub answered with status ' + r.status + '.');
+  }catch(e){ toast('Could not reach GitHub. Check your connection.'); }
+  setTimeout(() => { btn.disabled = false; }, 8000);
+}
+$('#startBtn').addEventListener('click', start);
+$('#cfgBtn').addEventListener('click', () => { $('#tok').value = ''; $('#dlg').showModal(); });
+$('#tokSave').addEventListener('click', () => { const v = $('#tok').value.trim(); if(v){ try{ localStorage.setItem(TOKEN_KEY, v); toast('Token saved on this device.'); }catch(e){ toast('This browser blocked saving the token.'); } } });
+$('#tokClear').addEventListener('click', () => { try{ localStorage.removeItem(TOKEN_KEY); }catch(e){} $('#dlg').close(); toast('Token removed from this device.'); });
+$('#replay').addEventListener('click', demo);
+
+/* ---------- boot ---------- */
+if(LIVE){ connect(); render({}); }
+else{
+  setConn('demo');
+  $('#banner').hidden = false;
+  $('#bannerText').textContent = 'Demo mode. Everything here is sample data, not real IPOs. Add your Firebase address to config.js to watch your own team.';
+  $('#startBtn').textContent = 'Play demo';
+  render({});
+  setTimeout(demo, 900);
+}
+})();
+</script>
+</body>
+</html>
