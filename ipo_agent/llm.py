@@ -94,7 +94,7 @@ def _short(r):
     m = re.search(r'"quotaId":\s*"([^"]+)"', r.text) or re.search(r'"quotaMetric":\s*"([^"/]*/?([^"]+))"', r.text)
     if m:
         quota = " [" + m.group(m.lastindex) + "]"
-    return f"{r.status_code} {msg[:110]}{quota}"
+    return f"{r.status_code}{quota} {msg[:70]}"
 
 
 def _check(r):
@@ -177,7 +177,7 @@ def _openai_compat(name, base, env_names, models_env, defaults, free_only=False)
 
     def call(prompt, system, search):
         def one(key):
-            tried, last = set(), None
+            tried, fails = set(), []
             order = ([_good[name]] if name in _good else []) + configured
             for phase in (0, 1):
                 for model in order:
@@ -190,6 +190,7 @@ def _openai_compat(name, base, env_names, models_env, defaults, free_only=False)
                         json={
                             "model": model,
                             "temperature": 0.3,
+                            "max_tokens": 4096,
                             "messages": [
                                 {"role": "system", "content": system},
                                 {"role": "user", "content": prompt},
@@ -202,23 +203,25 @@ def _openai_compat(name, base, env_names, models_env, defaults, free_only=False)
                         r.status_code == 400 and re.search(r"model", r.text, re.I))
                     if gone:  # retired, or this key may not use it: remember and try another
                         _gone.setdefault(name, set()).add(model)
-                        last = LLMError(f"{model}: {_short(r)}")
+                        fails.append(f"{model}: {_short(r)}")
                         continue
                     _check(r)
                     try:
-                        text = r.json()["choices"][0]["message"]["content"].strip()
-                    except (KeyError, IndexError, TypeError, AttributeError):
-                        raise LLMError(f"{model}: empty reply")
-                    if not text:
-                        raise LLMError(f"{model}: empty reply")
+                        text = (r.json()["choices"][0]["message"].get("content") or "").strip()
+                    except (KeyError, IndexError, TypeError, AttributeError, ValueError):
+                        text = ""
+                    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
+                    if not text:  # a reasoning model can spend all its tokens thinking: try the next model
+                        fails.append(f"{model}: empty reply")
+                        continue
                     _good[name] = model
                     return text
                 if phase == 0:  # every listed model is gone: use the provider's live list
                     try:
                         order = _discover(base, key, free_only)[:4]
                     except (requests.RequestException, ValueError) as e:
-                        raise last or LLMError(f"model list failed: {e}")
-            raise last or LLMError("no working model")
+                        raise LLMError("; ".join(fails[-3:]) or f"model list failed: {e}")
+            raise LLMError("; ".join(fails[-3:]) or "no working model")
 
         return _rotate(_keys(*env_names), one)
 
@@ -230,10 +233,11 @@ PROVIDERS = {
     # NVIDIA's free hosted models (build.nvidia.com). OpenAI compatible, no live web search.
     "nvidia": _openai_compat(
         "nvidia", "https://integrate.api.nvidia.com/v1", ("NVIDIA_API_KEYS", "NVIDIA_API_KEY"), "NVIDIA_MODELS",
-        "nvidia/nemotron-3-super-120b-a12b,openai/gpt-oss-20b,nvidia/llama-3.1-nemotron-70b-instruct"),
+        "nvidia/nemotron-3-super-120b-a12b,nvidia/llama-3.1-nemotron-70b-instruct,"
+        "mistralai/mistral-large-2-instruct,openai/gpt-oss-20b"),
     "groq": _openai_compat(
         "groq", "https://api.groq.com/openai/v1", ("GROQ_API_KEYS", "GROQ_API_KEY"), "GROQ_MODELS",
-        "llama-3.3-70b-versatile,openai/gpt-oss-120b,llama-3.1-8b-instant"),
+        "llama-3.3-70b-versatile,qwen/qwen3-32b,openai/gpt-oss-120b,llama-3.1-8b-instant"),
     "openrouter": _openai_compat(
         "openrouter", "https://openrouter.ai/api/v1", ("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY"),
         "OPENROUTER_MODELS", "meta-llama/llama-3.3-70b-instruct:free,openai/gpt-oss-20b:free", free_only=True),
@@ -247,7 +251,7 @@ def ask(prompt, system, search=False, order=("gemini", "nvidia", "groq", "openro
         try:
             res = PROVIDERS[name](prompt, system, search)
         except (LLMError, requests.RequestException) as e:  # includes RateLimit: just move to the next provider
-            errors.append(f"{name}: {e}"[:200])
+            errors.append(f"{name}: {e}"[:300])
             continue
         text, used_search = res if isinstance(res, tuple) else (res, False)
         return Reply(text=text, provider=name, searched=bool(used_search))
