@@ -6,6 +6,7 @@ import re
 import zoneinfo
 
 from . import llm
+from . import search
 from .live import live
 
 IST = zoneinfo.ZoneInfo("Asia/Kolkata")
@@ -114,8 +115,37 @@ def _json_obj(text):
         return None
 
 
+QUERIES = {
+    "fundamentals": ["{n} IPO financials revenue profit debt RHP", "{n} IPO valuation P/E compared to peers"],
+    "market_demand": ["{n} IPO GMP today", "{n} IPO subscription status QIB NII retail"],
+    "sector": ["{n} IPO sector outlook competitors market share"],
+    "geopolitics_macro": ["Sensex Nifty today FII DII flows crude oil rupee", "global markets geopolitical risk India stocks this week"],
+    "governance": ["{n} IPO promoters holding litigation risks RHP"],
+    "news_sentiment": ["{n} IPO review subscribe or avoid brokerage"],
+}
+NEWS_KEYS = {"market_demand", "geopolitics_macro", "news_sentiment"}
+
+
 def discover():
-    """Ask Gemini (with live search) which IPOs are open now or opening within 7 days."""
+    """Find IPOs that are open now or open within 7 days. Returns (ipos, searched)."""
+    if search.enabled():
+        ctx, n = search.gather([
+            f"IPO open this week India mainboard subscription dates price band {_today()}",
+            "upcoming IPO calendar India next week opening date closing date price band",
+        ])
+        if n == 0:
+            return [], False
+        prompt = (
+            f"Today is {_today()}. Below are web search results. Using ONLY these results, list IPOs in {MARKET} "
+            "that are open for subscription now or open within the next 7 days, with a closing date of today or later. "
+            "Mainboard IPOs only, unless there are fewer than 3, then add SME IPOs. Do NOT add any IPO that is not "
+            "named in the results, and leave a field empty if the results do not state it. Reply with ONLY a JSON "
+            'array, no other text: [{"name": "", "open_date": "YYYY-MM-DD", "close_date": "YYYY-MM-DD", '
+            '"price_band": "", "exchange": ""}]. Use [] if there are none.\n\nSEARCH RESULTS:\n' + ctx
+        )
+        reply = llm.ask(prompt, "You are a precise market data assistant. Never invent data.")
+        ipos = [i for i in _json_array(reply.text) if isinstance(i, dict) and i.get("name")]
+        return ipos[:MAX_IPOS], True
     prompt = (
         f"Today is {_today()}. List IPOs in {MARKET} that are open for subscription right now or open within the next "
         "7 days. Mainboard IPOs only, unless there are fewer than 3, then add SME IPOs. Only IPOs whose closing date "
@@ -139,7 +169,17 @@ def _specialist(key, ipo):
     title, focus = SPECIALISTS[key]
     system = f"{COMMON.format(market=MARKET, today=_today())}\nYour role: {title}."
     prompt = f"{_ipo_line(ipo)}\n\nYour focus: {focus}"
-    reply = llm.ask(prompt, system, search=True)
+    if search.enabled():
+        ctx, n = search.gather([q.format(n=ipo.get("name", "")) for q in QUERIES[key]], news=key in NEWS_KEYS)
+        if n:
+            prompt += ("\n\nSEARCH RESULTS (current web data). Base your numbers on these, name the source, "
+                       "and write 'not found' for anything they do not show:\n" + ctx)
+            reply = llm.ask(prompt, system)
+            reply.searched = True
+        else:
+            reply = llm.ask(prompt + "\n\nNo web results were found. Say 'not found' rather than guessing.", system)
+    else:
+        reply = llm.ask(prompt, system, search=True)
     sig = re.search(r"SIGNAL:\s*(POSITIVE|NEUTRAL|NEGATIVE)", reply.text, re.I)
     return {
         "key": key,
