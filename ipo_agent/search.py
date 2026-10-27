@@ -1,9 +1,11 @@
 """Web search through Tavily (free key from tavily.com). Used so the free LLMs get real, current facts.
 
 Set TAVILY_API_KEY (or several, comma separated, in TAVILY_API_KEYS). Without a key enabled() is False.
+Searches can be limited to trusted sites. If a limited search finds nothing, it is repeated on the open web once.
 Results are cached for the run so the same query never costs a second credit.
 """
 import os
+from urllib.parse import urlparse
 
 import requests
 
@@ -25,9 +27,17 @@ def enabled():
     return bool(_keys())
 
 
-def search(query, max_results=5, news=False):
+def site(url):
+    """Domain of a URL without www, for showing where information came from."""
+    try:
+        return urlparse(url).netloc.lower().removeprefix("www.")
+    except ValueError:
+        return ""
+
+
+def search(query, max_results=5, news=False, domains=None):
     """Return a list of {title, url, content}. Empty list if search is unavailable or finds nothing."""
-    ck = (query, news)
+    ck = (query, news, tuple(domains or ()))
     if ck in _cache:
         return _cache[ck]
     results = []
@@ -37,6 +47,8 @@ def search(query, max_results=5, news=False):
         body = {"query": query, "max_results": max_results, "search_depth": "basic", "include_answer": False}
         if news:
             body["topic"] = "news"
+        if domains:
+            body["include_domains"] = list(domains)
         try:
             r = requests.post("https://api.tavily.com/search",
                               headers={"Authorization": f"Bearer {key}"}, json=body, timeout=40)
@@ -56,17 +68,20 @@ def search(query, max_results=5, news=False):
         except ValueError:
             pass
         break
+    if not results and domains:  # trusted sites had nothing: try the open web once
+        results = search(query, max_results, news, None)
     _cache[ck] = results
     return results
 
 
-def gather(queries, news=False):
-    """Run several queries and return one block of text for the LLM, plus how many results it holds."""
-    seen, lines = set(), []
+def gather(queries, news=False, domains=None):
+    """Run several queries. Returns (text for the LLM, number of results, [{title, url}] sources)."""
+    seen, lines, sources = set(), [], []
     for q in queries:
-        for x in search(q, news=news):
+        for x in search(q, news=news, domains=domains):
             if x["url"] in seen:
                 continue
             seen.add(x["url"])
             lines.append(f"- {x['title']} ({x['url']})\n  {x['content']}")
-    return "\n".join(lines), len(lines)
+            sources.append({"title": x["title"] or site(x["url"]), "url": x["url"]})
+    return "\n".join(lines), len(lines), sources
