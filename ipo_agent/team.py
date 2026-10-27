@@ -126,13 +126,27 @@ QUERIES = {
 NEWS_KEYS = {"market_demand", "geopolitics_macro", "news_sentiment"}
 
 
+def _sites(env, default):
+    return [s.strip() for s in os.getenv(env, default).split(",") if s.strip()]
+
+
+# Searches look here first. If these sites have nothing, the open web is used once. Change with IPO_SITES / NEWS_SITES.
+IPO_SITES = _sites("IPO_SITES", "chittorgarh.com,ipowatch.in,ipocentral.in,investorgain.com,nseindia.com,bseindia.com,"
+                   "sebi.gov.in,moneycontrol.com,economictimes.indiatimes.com,business-standard.com,livemint.com,"
+                   "screener.in,trendlyne.com,groww.in")
+NEWS_SITES = _sites("NEWS_SITES", "reuters.com,economictimes.indiatimes.com,moneycontrol.com,livemint.com,"
+                    "business-standard.com,thehindubusinessline.com,ndtvprofit.com")
+discovery_sites = []  # sites the IPO list was taken from, shown to the user after discovery
+
+
 def discover():
     """Find IPOs that are open now or open within 7 days. Returns (ipos, searched)."""
     if search.enabled():
-        ctx, n = search.gather([
+        ctx, n, srcs = search.gather([
             f"IPO open this week India mainboard subscription dates price band {_today()}",
             "upcoming IPO calendar India next week opening date closing date price band",
-        ])
+        ], domains=IPO_SITES)
+        discovery_sites[:] = list(dict.fromkeys(search.site(s["url"]) for s in srcs if s["url"]))
         if n == 0:
             return [], False
         prompt = (
@@ -169,8 +183,10 @@ def _specialist(key, ipo):
     title, focus = SPECIALISTS[key]
     system = f"{COMMON.format(market=MARKET, today=_today())}\nYour role: {title}."
     prompt = f"{_ipo_line(ipo)}\n\nYour focus: {focus}"
+    srcs = []
     if search.enabled():
-        ctx, n = search.gather([q.format(n=ipo.get("name", "")) for q in QUERIES[key]], news=key in NEWS_KEYS)
+        ctx, n, srcs = search.gather([q.format(n=ipo.get("name", "")) for q in QUERIES[key]], news=key in NEWS_KEYS,
+                                     domains=NEWS_SITES if key == "geopolitics_macro" else IPO_SITES)
         if n:
             prompt += ("\n\nSEARCH RESULTS (current web data). Base your numbers on these, name the source, "
                        "and write 'not found' for anything they do not show:\n" + ctx)
@@ -188,6 +204,7 @@ def _specialist(key, ipo):
         "signal": sig.group(1).upper() if sig else "?",
         "searched": reply.searched,
         "provider": reply.provider,
+        "sources": srcs[:4],
     }
 
 
@@ -232,10 +249,17 @@ def analyse(ipo):
         live.agent("manager", "error", "Could not write the verdict, all free models were busy",
                    verdict="NEUTRAL", confidence="LOW", provider="none")
 
+    seen, sources = set(), []
+    for r in results:
+        for s in r.get("sources", []):
+            if s["url"] not in seen:
+                seen.add(s["url"])
+                sources.append(s)
     return {
         "verdict": verdict,
         "signals": {r["key"]: r["signal"] for r in results},
         "all_searched": all(r["searched"] for r in results),
+        "sources": sources[:8],
     }
 
 
@@ -262,6 +286,9 @@ def format_ipo(ipo, res):
         "Data gaps:\n" + _bullets(v.get("data_gaps")),
         f"Team signals: {signals}",
     ]
+    if res.get("sources"):
+        lines.append("Sources:\n" + "\n".join(
+            f"  • {search.site(s['url'])}: {s['url']}" for s in res["sources"][:6]))
     if not res["all_searched"]:
-        lines.append("⚠️ Some agents ran without live search (rate limit), so their data may be stale.")
+        lines.append("⚠️ Some agents had no web results, so their data may be missing or stale.")
     return "\n".join(lines)
