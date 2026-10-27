@@ -196,7 +196,7 @@ def _specialist(key, ipo):
             reply = llm.ask(prompt + "\n\nNo web results were found. Say 'not found' rather than guessing.", system)
     else:
         reply = llm.ask(prompt, system, search=True)
-    sig = re.search(r"SIGNAL:\s*(POSITIVE|NEUTRAL|NEGATIVE)", reply.text, re.I)
+    sig = re.search(r"SIGNAL\W{0,6}(POSITIVE|NEUTRAL|NEGATIVE)", reply.text, re.I)  # also matches **SIGNAL:** POSITIVE
     return {
         "key": key,
         "title": title,
@@ -286,6 +286,9 @@ def format_ipo(ipo, res):
         "Data gaps:\n" + _bullets(v.get("data_gaps")),
         f"Team signals: {signals}",
     ]
+    missing = [SPECIALISTS[k][0] for k, sg in res["signals"].items() if sg == "?" and k in SPECIALISTS]
+    if missing:
+        lines.append("? = no signal (failed or unclear): " + ", ".join(missing))
     if res.get("sources"):
         lines.append("Sources:\n" + "\n".join(
             f"  • {search.site(s['url'])}: {s['url']}" for s in res["sources"][:6]))
