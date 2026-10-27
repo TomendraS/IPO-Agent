@@ -10,7 +10,12 @@ from dataclasses import dataclass
 
 import requests
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+# Tried in order. A model Google has retired for new keys answers 404, so the next one is used.
+GEMINI_MODELS = [m.strip() for m in os.getenv(
+    "GEMINI_MODELS", "gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite").split(",") if m.strip()]
+if os.getenv("GEMINI_MODEL"):
+    GEMINI_MODELS.insert(0, os.getenv("GEMINI_MODEL").strip())
+_search_ok = {}  # model -> False once Google refuses live search on this key (free tier)
 NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
@@ -91,29 +96,41 @@ def _gemini(prompt, system, search):
         wait = GEMINI_GAP_SECONDS - (time.time() - _last_call.get(key, 0))
         if wait > 0:
             time.sleep(wait)
-        body = {
-            "systemInstruction": {"parts": [{"text": system}]},
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.3},
-        }
-        if search:
-            body["tools"] = [{"google_search": {}}]
-        r = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-            headers={"x-goog-api-key": key},
-            json=body,
-            timeout=180,
-        )
-        _last_call[key] = time.time()
-        _check(r)
-        try:
-            parts = r.json()["candidates"][0]["content"]["parts"]
-        except (KeyError, IndexError):
-            raise LLMError("Gemini returned no candidates")
-        text = "".join(p.get("text", "") for p in parts).strip()
-        if not text:
-            raise LLMError("Gemini returned empty text")
-        return text
+        last = None
+        for model in GEMINI_MODELS:
+            for use_search in ([True, False] if search else [False]):
+                if use_search and _search_ok.get(model) is False:
+                    continue
+                body = {
+                    "systemInstruction": {"parts": [{"text": system}]},
+                    "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                    "generationConfig": {"temperature": 0.3},
+                }
+                if use_search:
+                    body["tools"] = [{"google_search": {}}]
+                r = requests.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                    headers={"x-goog-api-key": key},
+                    json=body,
+                    timeout=180,
+                )
+                _last_call[key] = time.time()
+                if r.status_code == 404:  # model retired or not offered to this key: try the next model
+                    last = LLMError(f"model {model} unavailable: {r.text[:120]}")
+                    break
+                if use_search and r.status_code in (400, 403, 429) and re.search(r"search|ground", r.text, re.I):
+                    _search_ok[model] = False  # free keys cannot use live search: retry without it
+                    continue
+                _check(r)
+                try:
+                    parts = r.json()["candidates"][0]["content"]["parts"]
+                except (KeyError, IndexError):
+                    raise LLMError("Gemini returned no candidates")
+                text = "".join(p.get("text", "") for p in parts).strip()
+                if not text:
+                    raise LLMError("Gemini returned empty text")
+                return text, use_search
+        raise last or LLMError("no Gemini model worked")
 
     return _rotate(_keys("GEMINI_API_KEYS", "GEMINI_API_KEY"), one)
 
@@ -167,8 +184,9 @@ def ask(prompt, system, search=False, order=("gemini", "nvidia", "groq", "openro
     for name in order:
         for attempt in range(2):
             try:
-                text = PROVIDERS[name](prompt, system, search)
-                return Reply(text=text, provider=name, searched=bool(search and name == "gemini"))
+                res = PROVIDERS[name](prompt, system, search)
+                text, used_search = res if isinstance(res, tuple) else (res, False)
+                return Reply(text=text, provider=name, searched=bool(used_search))
             except RateLimit as e:
                 errors.append(f"{name}: {e}"[:160])
                 if attempt == 0:
