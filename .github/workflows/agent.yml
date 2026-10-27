@@ -1,0 +1,59 @@
+name: ipo-agent
+
+on:
+  schedule:
+    - cron: "30 3 * * *"      # 09:00 IST - morning "search IPOs today?" prompt
+    - cron: "*/5 4-12 * * *"  # 09:30-18:25 IST - check Telegram taps + 1-hour reminders
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "What to run"
+        type: choice
+        options: [poll, morning, research]
+        default: poll
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ipo-agent
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Run agent
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          FIREBASE_DB_URL: ${{ secrets.FIREBASE_DB_URL }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          MODE="poll"
+          if [ "${{ github.event.schedule }}" = "30 3 * * *" ]; then MODE="morning"; fi
+          if [ -n "${{ github.event.inputs.mode }}" ]; then MODE="${{ github.event.inputs.mode }}"; fi
+          python main.py "$MODE"
+
+      - name: Save state
+        if: always()
+        run: |
+          git config user.name "ipo-agent"
+          git config user.email "ipo-agent@users.noreply.github.com"
+          git add state.json
+          git diff --cached --quiet || (git commit -m "update state" && git pull --rebase && git push)
