@@ -5,7 +5,7 @@ window.IPO_CONFIG = {
   firebaseUrl: "https://YOUR-PROJECT-default-rtdb.firebaseio.com",
 
   // Your GitHub repository as "owner/name". Used by the Start research button.
-  githubRepo: "YOUR-USERNAME/ipo-agent",
+  githubRepo: "TomendraS/IPO-Agent",
   workflow: "agent.yml",
   branch: "main"
 };
