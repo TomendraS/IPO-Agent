@@ -7,6 +7,7 @@ from ipo_agent import state as st
 from ipo_agent import team
 from ipo_agent import telegram_api as tg
 from ipo_agent import llm
+from ipo_agent import search
 from ipo_agent.live import live
 
 IST = zoneinfo.ZoneInfo("Asia/Kolkata")
@@ -69,9 +70,12 @@ def _run_report(state):
         live.run_end(False, "Could not fetch the IPO list, all free models were busy")
         return
     if not searched:
-        tg.send("Live web search is not available on your free Gemini key, so I cannot list real IPOs "
-                "without guessing. I stopped instead of inventing any. Add a search source (ask Claude "
-                "to add Tavily) or enable billing on the Gemini project.")
+        if search.enabled():
+            tg.send("The web search returned nothing (Tavily may be out of credits or down), so I cannot list "
+                    "real IPOs without guessing. I stopped instead of inventing any. Check your Tavily dashboard.")
+        else:
+            tg.send("No web search is set up, so I cannot list real IPOs without guessing. I stopped instead "
+                    "of inventing any. Add a TAVILY_API_KEY secret in GitHub.")
         live.run_end(False, "Stopped: no live web search available, so no real IPO list")
         return
     if not ipos:
